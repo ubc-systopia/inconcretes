@@ -1,0 +1,49 @@
+FROM ubuntu:focal-20220826
+ENV TZ=America/Vancouver
+RUN apt-get update &&\
+    apt-get install -y --no-install-recommends tzdata &&\
+    apt-get install -y --no-install-recommends g++ cmake \
+    make \
+    libboost-thread-dev libboost-chrono-dev \
+    libhiredis-dev wget unzip \
+    ca-certificates \
+    liblog4cpp5v5 liblog4cpp5-dev \
+    libboost-all-dev libssl-dev \
+    libgrpc-dev \
+    git \
+    libgrpc++-dev \
+    libprotobuf-dev \
+    protobuf-compiler-grpc \
+    openssh-server redis-server etcd sudo ninja-build psmisc &&\
+    cd / && wget "https://api.github.com/repos/sewenew/redis-plus-plus/zipball/1.3.5" -O redis-plus-plus-1.3.5.zip &&\
+    unzip redis-plus-plus-1.3.5.zip &&\
+    mkdir -p /sewenew-redis-plus-plus-5808493/build &&\
+    cd /sewenew-redis-plus-plus-5808493/build &&\
+    cmake -DREDIS_PLUS_PLUS_CXX_STANDARD=17 .. && make && make install &&\
+    rm -rf /redis-plus-plus-1.3.5.zip /sewenew-redis-plus-plus-5808493 &&\
+    cd / && git clone https://github.com/microsoft/cpprestsdk.git &&\
+    cd cpprestsdk &&\
+    mkdir build && cd build &&\
+    cmake .. -DCPPREST_EXCLUDE_WEBSOCKETS=ON &&\
+    make && make install &&\
+    rm -rf /cpprestsdk &&\
+    cd / && git clone https://github.com/etcd-cpp-apiv3/etcd-cpp-apiv3.git &&\
+    cd etcd-cpp-apiv3 &&\
+    mkdir build && cd build &&\
+    cmake .. &&\
+    make && make install &&\
+    rm -rf /etcd-cpp-apiv3 &&\
+    cd / && wget "https://api.github.com/repos/hyperrealm/libconfig/zipball/v1.7.3" -O libconfig-v1.7.3.zip &&\
+    unzip libconfig-v1.7.3.zip &&\
+    cd hyperrealm-libconfig-525922a &&\
+    mkdir build &&\
+    cd build &&\
+    cmake .. &&\
+    make && make install &&\
+    rm -rf /libconfig-v1.7.3.zip /hyperrealm-libconfig-525922a &&\
+    cd / && adduser pi --gecos GECOS --disabled-password &&\
+    mkdir -p /home/pi/.ssh &&\
+    chown -R pi /home/pi &&\
+    chmod 755 /home/pi &&\
+    usermod -aG sudo pi &&\
+    echo "pi ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers

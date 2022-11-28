@@ -1,0 +1,4 @@
+Workload, Benchmark Config, #Tasks, #Labels, Avg. label size (bytes), Configured total task utilization (%), Duration (s), #CPUs, Smallest Period (ms), KVS Type, Node ID, Success Read %, Success Write %, Success Read Iterations %, Success Write Iterations %, App BCET (ms), App ACET (ms), App WCET (ms), KVS BCET (ms), KVS ACET (ms), KVS WCET (ms)
+Bosch1, kzh15_113pcu_1018l.cfg, 4, 270, 2.07778, 2.03465, 300, 1, 50, BFTKVS2, 4, 100, 100, 100, 100, 0.006929, 0.0935002, 0.464565, 1.7752, 17.8207, 26.8605
+Bosch1, kzh15_140pcu_2017l.cfg, 4, 573, 2.42059, 2.00164, 300, 1, 50, BFTKVS2, 4, 92.0741, 100, 81.6667, 100, 0.008423, 0.145718, 0.757632, 4.88338, 23.5764, 40.5555
+Bosch1, kzh15_118pcu_3461l.cfg, 4, 905, 2.2674, 1.51179, 300, 1, 50, BFTKVS2, 4, 1.13162, 99.9599, 1.18519, 99.7685, 0.011438, 0.161667, 1.16177, 9.47872, 30.1976, 46.0624
