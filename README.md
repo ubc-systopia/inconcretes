@@ -10,7 +10,9 @@ We proivde a Docker environment to simplfy artifact evaluation. We also explain 
 
 **Disclaimer: Since our evaluation is performance-oriented and results depend on the platform used, the results obtained using Docker may not mirror that in the paper and may also depend on the host machine configurations.**
 
-Whne cloning this repository, also recursively clone the submodules!
+When cloning this repository, also recursively clone the submodules!
+
+For questions, contact Arpan Gujarati (arpanbg@cs.ubc.ca).
 
 ## Quick Start + Docker Setup
 Achal is a distributed system. In our experiment setup, we deployed Achal on a cluster of 4 raspberry pis, and control it from a client machine. Note that the client machine is not part of the distributed system, but merely used to orchestrate experiments.
