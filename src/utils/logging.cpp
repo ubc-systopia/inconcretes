@@ -15,7 +15,7 @@ bool get_new_logger(std::string id, int prio, log4cpp::Category **logger_pp) {
     std::cout << "Created console logger \"" << id << "\"" << std::endl;
     return true;
   } catch(const std::exception& e) {
-    std::cerr << "Error: Creation of logger \"" << id << "\" failed "
+    std::cerr << "Error: Creation of logger \"" << id << "\" failed " 
               << "with exception " << e.what() << std::flush;
     return false;
   }

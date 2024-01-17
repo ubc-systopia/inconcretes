@@ -1,0 +1,7 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "bp")(type "Legacy")(uri "C:/Users/Adarsh/Desktop/InvertedPendulum/IVP_PCBs/Imported_Libraries/blue-pill-kicad-master/bp.lib")(options "")(descr ""))
+  (lib (name "MCU_STM32_bluepill")(type "KiCad")(uri "C:/Users/Adarsh/Desktop/InvertedPendulum/IVP_PCBs/Project_Libraries/MCU_STM32_bluepill.kicad_sym")(options "")(descr ""))
+  (lib (name "devboard_STM32_bluepill")(type "KiCad")(uri "C:/Users/Adarsh/Desktop/InvertedPendulum/IVP_PCBs/Project_Libraries/devboard_STM32_bluepill.kicad_sym")(options "")(descr ""))
+  (lib (name "DevBoard_STM32_Bluepill")(type "KiCad")(uri "${KIPRJMOD}/DevBoard_STM32_Bluepill.kicad_sym")(options "")(descr ""))
+)

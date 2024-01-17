@@ -1,0 +1,5 @@
+20x2 pin male header: https://www.snapeda.com/parts/7-146256-0/TE%20Connectivity/view-part/
+Resistors: https://www.snapeda.com/parts/RC1206JR-130RL/Yageo/view-part/
+Barrel Jack Power Connector: https://www.snapeda.com/parts/PJ-002A/CUI+Devices/view-part/
+20x2 pin female header: https://www.snapeda.com/parts/SSQ-120-01-L-D/Samtec/view-part/
+

@@ -14,10 +14,45 @@
 #define INC_FAILURE(stat) (stat.second++)
 
 namespace Achal {
+  typedef struct process {
+  int id;
+  const char *ip;
+  const char *port;
+  } process_t;
+  
+  typedef struct config {
+  // base class constructor params
+  unsigned id;
+  uint64_t period_ns;
+  uint64_t offset_ns;
+  unsigned priority;
+  unsigned cpu;
+  log4cpp::Category *logger;
+
+  // this class specific params
+  unsigned port;
+  std::vector<process_t> peers;
+  uint64_t max_network_delay_ns;
+  uint8_t max_rounds;
+  uint8_t my_process_id;
+  uint64_t max_jobs;
+  uint8_t max_failed_comms;
+  uint8_t failure_time_multiple;
+  uint64_t wcet_kvs; 
+  } config_t;
+
+  typedef struct{
+  uint64_t time;
+  uint64_t no_earlier_than;
+  uint8_t mode;
+  bool status;
+} read_status;
+
 
 class KVSInterface : public Utils::PeriodicTask {
  public:
   bool use_simple_median = false;
+  bool terminate_flag=false;
 
   std::pair<uint64_t, uint64_t> try_read_batch(
       std::vector<std::string>& keys,
@@ -47,6 +82,14 @@ class KVSInterface : public Utils::PeriodicTask {
       }
     }
     return result;
+  }
+
+  virtual read_status logging_read(std::string key, uint64_t no_earlier_than,
+                        std::string &value){
+
+    read_status status;
+    return status;
+                          
   }
 
   virtual bool try_read(std::string key, uint64_t no_earlier_than,

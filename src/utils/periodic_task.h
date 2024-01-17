@@ -4,7 +4,7 @@
 #include <limits>
 #include <thread>
 #include <vector>
-
+#include <fstream>
 #include "logging.h"
 #include "periodic_timer.h"
 #define MAX_NUM_JOBS 180000
@@ -74,6 +74,7 @@ class PeriodicTask {
 
   //void flush_cache();
   void profiler(unsigned int max_iterations = 100);
+  void flush_exec_times(std::string log_folder_path);
 
   uint64_t my_release_time();
   uint64_t my_release_time_without_offset();

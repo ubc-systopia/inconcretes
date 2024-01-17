@@ -2,10 +2,12 @@
 
 #include <stdio.h>
 #include <sched.h>
+#include <iostream>
 
 void set_my_sched_fifo_priority(int prio) {
   struct sched_param param;
   param.sched_priority = prio;
+  std::cout<<"prio: "<<prio<<std::endl;
   if (sched_setscheduler(0, SCHED_FIFO, &param) < 0) {
     perror("Error (sched_setscheduler)");
   }

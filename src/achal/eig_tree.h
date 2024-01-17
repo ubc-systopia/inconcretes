@@ -40,7 +40,7 @@ class EIGTree {
     for (size_t l = 0; l <= h; l++) {
       size_t nn = l == 0 ? 1 : num_nodes[l - 1] * degree;
 
-      num_nodes[l] = nn;
+      num_nodes[l] = nn; 
       levels[l] = new T[nn];
       valid[l] = new bool[nn];
       children[l] = new std::vector<size_t>[nn];
@@ -121,7 +121,6 @@ class EIGTree {
   inline uint8_t * send_buffer(int l) {
     return (uint8_t *)&levels[l][0];
   }
-
   inline void send_buffer_optimized(int l, int pid, std::vector<boost::asio::const_buffer> &send_bufs) {
     for(int i = 0; i < num_nodes[l]; i++){
       for(int c : children[l][i]){
@@ -147,43 +146,69 @@ class EIGTree {
     return receive_bufs;
   }
 
-  T *reduce() {
+  // void print_tree(){
+  //   for(l=0;){
 
+  //   }
+  // }
+
+  T *reduce() {
+    // std::cout<<"started reduce"<<std::endl;
+    // std::cout<<"height-1: "<<height<<std::endl;
     for (int l = height - 1; l >= 0; l--) {
       int nn = num_nodes[l];
+      // std::cout<<"num nodes: " << num_nodes[l]<<std::endl;
       for (int n = 0; n < num_nodes[l]; n++) {
         freq.clear();
         index.clear();
         if (!valid[l][n]) {
+          // std::cout<<"invalid"<<std::endl;
           continue;
         }
 
         for (size_t child : children[l][n]) {
+          // std::cout<<"iterating over children"<<std::endl;
           hasher.reset();
           hasher.process_bytes(&levels[l + 1][child], sizeof(T));
           uint32_t hash = hasher.checksum();
+          
+          // std::cout<<"eig node length: "<< levels[l+1][child].length<<std::endl;
+          // for(int i=0; i<levels[l+1][child].length;i++){
+          //   std::cout<<"key: " << levels[l+1][child].tuples[i].key << "| value: "<<levels[l+1][child].tuples[i].value<< std::endl;
+          // }
+
           freq[hash]++;
+          // std::cout<<freq[hash]<<std::endl;
           index[hash] = child;
         }
 
         int max_frequency = -1;
         int maj = -1;
         for (auto &p : freq) {
+          // std::cout<<"p.first: "<<p.first<<std::endl;
           if (p.second > max_frequency) {
             max_frequency = p.second;
             maj = index[p.first];
+            // std::cout<<"maj: "<<maj<<" | "<<"max freq: "<<max_frequency<<std::endl;
           }
         }
 
+        // std::cout<<"degree: "<<degree <<" | "<<"height: "<< height<< " | "<< "l: "<< l <<std::endl;
         if (max_frequency > degree - height - l) {
           // simple majority exists
+          // std::cout<<"entering if: simple majority exists"<<std::endl;
+          // std::cout<<"IF REACHED: "<<levels[l+1][maj].tuples->value<<std::endl;
+          // std::cout<<"majority value: "<<levels[l + 1][maj]<<std::endl;
           levels[l][n] = levels[l + 1][maj];
         }else{
           // empty value
+          // std::cout<<"entering else: empty value"<<std::endl;
+          // std::cout<<"degree: "<<degree <<" | "<<"height: "<< height<< " | "<< "l: "<< l <<" | max freq: " << max_frequency << std::endl;
           std::memset(&levels[l][n], 0, sizeof(T));
         }
       }
     }
+    // std::cout<<"end reduce"<<std::endl;
     return root();
   }
 

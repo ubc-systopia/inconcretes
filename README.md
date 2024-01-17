@@ -1,124 +1,105 @@
-# Artifact Evaluation Guide
+<!-- # IVP System Guide -->
 
-## Summary
+This repository contains source code and build documentation for a physical inverted pendulum test platform. The physical system, seen below, works to keep the pendulum shaft upright by actuating a pendulum cart along a track. To achieve this, we use a PID controller program that runs on a network of 4 Raspberry Pis. The Pis are able to communicate with each other using a distributed key value store. 
 
-This repository contains the source code for our upcoming RTSS 2022 paper titled *In-ConcReTeS: Interactive Consistency meets Distributed Real-Time Systems, Again!*.
+<p align = "center">
+  <img src="README_images/Pendulum_Diagram.png">
+</p>
 
-The internal codename for our system is *Achal*, which means immovable or invariable in Hindi, and stands for the predictable performance we seek to achieve in fault-tolerant distributed real-time systems.
+## Controls
 
-We proivde a Docker environment to simplfy artifact evaluation. We also explain how to run the system natively on our testbed (in case reviewers have access to our testbed or similar hardware).
+### PID Control
+<p align="center">
+  <img src="README_images/Control_Overview.png" />
+</p>
 
-**Disclaimer: Since our evaluation is performance-oriented and results depend on the platform used, the results obtained using Docker may not mirror that in the paper and may also depend on the host machine configurations.**
+PID Control is used to actuate system and balance the pendulum. There are 2 PID algorithms running at different sampling rates (30 Hz for Position PID and 200 Hz for Angle PID were lower bounds in our testing). 
 
-When cloning this repository, also recursively clone the submodules!
+The PID algorithm tracks the error of a system over time and applies the following computation to it:
 
-For questions, contact Arpan Gujarati (arpanbg@cs.ubc.ca).
+$$
+  u(t)=K_pe(t)+ K_i \int_{a}^{b} e(\tau) \,d\tau + K_d \frac{d}{dt} e(t)
+$$
+<!-- <p align="center">
+  <img src="README_images/PID_Equation.png" />
+</p> -->
+<!-- ![PID_Equation](README_images/PID_Equatvion.png) -->
 
-## Quick Start + Docker Setup
-Achal is a distributed system. In our experiment setup, we deployed Achal on a cluster of 4 raspberry pis, and control it from a client machine. Note that the client machine is not part of the distributed system, but merely used to orchestrate experiments.
+The proportional term of $K_pe(t)$ can be thought of as **reacting immediately to the current error**, the integralterm as **accumulating past errors over time**, and the derivative as **predicting future error trends**. PID control offers a cost-effective and straightforward solution compared to more complex control methods. 
 
-```
-            ┌───────────────────────────────┐
-            │                               │
-            │                               │
-            │       Client machine          │
-            │                               │
-            │                               │
-            └──────────────┬────────────────┘
-                           │Run experiments!
-    ┌───────────────┬──────┴─────────┬───────────────┐
-    │               │                │               │
-    ▼               ▼                ▼               ▼
-┌──────┐         ┌──────┐        ┌──────┐        ┌──────┐
-│      │         │      │        │      │        │      │
-│ Pi 1 │ ◄─────► │ Pi 2 │ ◄────► │ Pi 3 │ ◄─────►│ Pi 4 │
-│      │         │      │        │      │        │      │
-└──────┘         └──────┘        └──────┘        └──────┘
-```
+The position PID algorithm takes the Cart Position as an input. This is given by an ultrasonic sensors on the sides of the assembly, then filtered before being passed as an input. The position PID algorithm then computes an output which we call an Angle Offset. This is an offset to the real angle of the pendulum and works to amplify the response of the angle controller when the cart nears the edges of the track. Without this controller, the pendulum has no incentive to remain with the bounds of the track.
 
-To make it convenient for new users and artifact evaluators, we have provided a `docker-compose.yml` file which simulates the aforementioned 4 Raspberry Pis with 4 containers, and also deploys a `client` container to control these Pis, as we did while we evaluated the performance of the prototype.
+The angle controller takes the current angle of the pendulum along with the offset provided by the position controller and computes the appropriate signal to send to the motor accordingly. A larger deviation from the desired angle results in more force applied by the motor to correct the pendulum.
 
-Our code and scripts expect the Raspberry Pis to have fixed hostnames and DNS (`achal0*`), and fixed IPs (`198.162.55.14*`). (Yeah, it is bad coding practice...) In addition, they assume that the client machine can execute command `ssh achal0*` to connect to any of the Pis. These configurations are all set in `docker-compose.yml`, and you do not need to worry about them.
+## System Overview
 
-To use `docker-compose.yml`, make sure you have 
-`docker` and `docker-compose` installed, and that you can use docker without `sudo`. We recommend that you use `Ubuntu` and your are using an `x86` machine with a CPU that has at least 4 cores, preferably 8. Then, run
+### Starting with a Single Node Setup
 
-```
-docker-compose up --build
-```
+![InvertedPendulum-Page-1.drawio.png](README_images/System_Overview.png)
 
-This will bring up 5 containers as described above. Note that the first run of the command will be slow, whereas subsequent commands will be much faster.
+A diagram for the system for a single node configuration is seen above.  
 
-1. `docker-compose` will use `Dockerfile` to build environments for the Raspberry Pi containers, and `Dockerfile.client` for the `client` container.
-2. `docker-compose` will set the DNS, hostnames, and IPs as configured and expected by our code and scripts.
-3. The `pi` containers will launch and start their `openssh-servers` listening for `ssh` connections. The `client` container will attempt to connect to each of the `pi` containers once, to test the connectivity.
-4. After you start `docker-compose` you can look straight into your `logging/` directory for the execution logs, as by default, `docker-compose` will launch experiment `A2` in the paper (see the relevant section below for details).
-5. Wait for the `client` container to establish its first connetions with the `pi` containers and finish experiment `A2`. When it is done, you should find `et_profile.pdf` under `paper/a2`. Note that the `logging/` and `paper/` is shared between your computer (the host of the docker engine) and the `client` container. So, there is no need to explicitly copy files out of the container.
-6. Now, to run other experiments, you can modify `docker-compose.yml`, quit the running `docker-compose` program, and re-run `docker-compose up --build`. So, for instance, change this:
-```
-...
-CONTAINER_MODE=true bash run_ivp_2.sh;
-        bash plot_ivp_2.sh;
-...
-```
-to this
-```
-...
-CONTAINER_MODE=true bash run_ivp_1.sh;
-        bash plot_ivp_1.sh;
-...
-```
-or this
-```
-...
-CONTAINER_MODE=true bash run_bosch_1.sh;
-        bash plot_bosch_1.sh;
-...
-```
+The physical build consists of the pendulum itself, with a Rotary Encoder, 2 Ultrasonic sensors, 2 limit switches and a motor driver. 
 
-## Running Natively on Raspberry Pis
+In order to control the pendulum we periodically drive the motor on the pendulum using a PWM signal, which is scaled and given direction based on the state of the system, using the PID scheme outlined above.
 
-Like before, we will assume
+The single node in the setup is running 2 periodic tasks at different periods, a **Position Control Loop** and an **Angle Control Loop**. At the Position Control Loop we read a filtered position of the cart and use this as input to the Position PID algorithm. The output is saved to our Key Value Store and is shared with the Angle Control Loop through a shared memory location. 
 
-* a client workstation and four target nodes `achal01`-`achal04`
-* that target nodes can be accessed from `client` via SSH without passwords
-* and that this repository is cloned at `path/to/achal`
+The **Rotary Encoder BP** is a microcontroller running a continuous loop which reads the **Rotary Encoder** to find the current angle of the pendulum in every loop and forwards this value to the **Angle Control Loop**. The **Angle Control Loop** also receives a reading for the cart's current position along the track from **Ultrasonic 1**. 
 
-We also assume for now that `redis`, `etcd`, and PTP are installed (see paper for version details)
+ The **Angle Control Loop** performs some filtering of the position and shared this back to the Position Control Loop through a shared memory location. The **Angle Control Loop** uses the output of the position control loop for the angle PID algorithm to give us the output to the Pendulum. This output is in the form a scalar value that is then translated to the duty cycle and direction of a PWM signal.
 
-* TODO: Add details about installing `redis`, `etcd`, and PTP on a vanilla system
+The **Motor BP** is another microcontroller that is running a continuous loop where it receives the PWM signal from the **Angle Control Loop** and forwards it to the motor driver which then actuates the actual pendulum to achieve control. 
 
+### Moving to a Multi Node Setup
+
+<p align="center">
+  <img src="README_images/Multi_Node_Overview.png" />
+</p>
+<!-- ![MultiNode.drawio(2).png](README_images/Multi_Node_Overview.png) -->
+
+In a Multi Node Setup,, we have a maximum of 4 Raspberry Pi Nodes. Each of these is running an **Angle Control Loop** and a **Position Control Loop**. 2 Pis are capable of receiving position values from an independent Ultrasonic Sensor, and all 4 Pis are capable of receiving angular values from the **Rotary Encoder BP**. 
+
+Position values can be shared across the Pis using the KVS, along with the control output from each Pi, along with any other values.
+
+Each Pi computes its own control output, comprised of the PWM and Direction signals which are sent to the **Motor BP**. The **Motor BP** is then responsible for deciding on the output to send to the **Motor Driver**, which actuates the cart along the pendulum platform.
+
+## Running on Raspberry Pis
+
+We assume the following:
+  - 4 raspberry pi nodes with hostnames `achal01-achal04`
+  - nodes can access each other via SSH without passwords
+  - this repository is cloned in the home directory of each node
+  - PTP is installed
+  
 ### PTP and VLAN config
 
-* Run `ifconfig`, expected output:
+Run `ifconfig`, expected output:
 
-```
-eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
-        inet 198.162.55.144  netmask 255.255.254.0  broadcast 198.162.55.255
-        inet6 fe80::3a6:5deb:2c59:cd7f  prefixlen 64  scopeid 0x20<link>
-        ether dc:a6:32:cd:ce:77  txqueuelen 1000  (Ethernet)
-        RX packets 130046388  bytes 273546776 (260.8 MiB)
-        RX errors 0  dropped 0  overruns 0  frame 0
-        TX packets 131685298  bytes 406542628 (387.7 MiB)
-        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+    eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+            inet 198.162.55.144  netmask 255.255.254.0  broadcast 198.162.55.255
+            inet6 fe80::3a6:5deb:2c59:cd7f  prefixlen 64  scopeid 0x20<link>
+            ether dc:a6:32:cd:ce:77  txqueuelen 1000  (Ethernet)
+            RX packets 130046388  bytes 273546776 (260.8 MiB)
+            RX errors 0  dropped 0  overruns 0  frame 0
+            TX packets 131685298  bytes 406542628 (387.7 MiB)
+            TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
 
-lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
-        inet 127.0.0.1  netmask 255.0.0.0
-        inet6 ::1  prefixlen 128  scopeid 0x10<host>
-        loop  txqueuelen 1000  (Local Loopback)
-        RX packets 76902811  bytes 8946060175 (8.3 GiB)
-        RX errors 0  dropped 0  overruns 0  frame 0
-        TX packets 76902811  bytes 8946060175 (8.3 GiB)
-        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
-```
+    lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+            inet 127.0.0.1  netmask 255.0.0.0
+            inet6 ::1  prefixlen 128  scopeid 0x10<host>
+            loop  txqueuelen 1000  (Local Loopback)
+            RX packets 76902811  bytes 8946060175 (8.3 GiB)
+            RX errors 0  dropped 0  overruns 0  frame 0
+            TX packets 76902811  bytes 8946060175 (8.3 GiB)
+            TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
 
-* Run the following commands:
-
-  * `sudo ip link add link eth0 name eth0.11 type vlan id 1 egress 0:2 1:2 2:2 3:2 4:2 5:2 6:2 7:2`
-  * `sudo ip link add link eth0 name eth0.12 type vlan id 2 egress 0:4 1:4 2:4 3:4 4:4 5:4 6:4 7:4`
-
-* Again run `ifconfig`, expected output:
-
+Run the following commands:
+  ```bash
+    sudo ip link add link eth0 name eth0.11 type vlan id 1 egress 0:2 1:2 2:2 3:2 4:2 5:2 6:2 7:2
+    sudo ip link add link eth0 name eth0.12 type vlan id 2 egress 0:4 1:4 2:4 3:4 4:4 5:4 6:4 7:4
+  ```
+Again run `ifconfig`, expected output:
 ```
 eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
         inet 198.162.55.144  netmask 255.255.254.0  broadcast 198.162.55.255
@@ -154,165 +135,61 @@ lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
         TX packets 76902811  bytes 8946060175 (8.3 GiB)
         TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
 ```
+Check the PTP status using systemctl status ptp4l and find the path of the ptp4l service
 
-* Check the PTP status using `systemctl status ptp4l` and find the path of the ptp4l service
-* For example, the output will contain a line `Loaded: loaded ( ; enabled; vendor preset: enabled)`
-* Open file using ` sudo vim /lib/systemd/system/ptp4l.service` and check the ethernet interface used by PTP
-* By default, it is `eth0`, replace it with `eth0.11`
-* Run the following `systemctl` commands:
+For example, the output will contain a line `Loaded: loaded ( ; enabled; vendor preset: enabled)`
 
-  * `sudo systemctl daemon-reload`
-  * `sudo systemctl restart ptp4l`
+Open file using  `sudo vim /lib/systemd/system/ptp4l.service` and check the ethernet interface used by PTP
 
-## Experiment Details
+By default, it is `eth0`, replace it with `eth0.11`
 
-This applies mainly to native runs. Comments regarding Docker runs are added at the end of each experiment description.
+Run the following systemctl commands:
+  ```bash
+  sudo systemctl daemon-reload
+  sudo systemctl restart ptp4l
+  ```
 
-### Experiment A1
+### Running the Pendulum
+<!-- 1. Run [`setup.sh`](http://setup.sh) on each Pi -->
+1. Naviagate to this repository on Pi 1
+2. Build the project:
+    1. Navigate to the `build` directory
+    2. run `cmake ..`
+    3. run `make`
+3. Enable UART on each of the Pis from the `raspi config` tool.
+4. Callibrate pendulum by running the following command in the build directory of any of the connected Pis:
+    ``` bash
+    sudo ./test_AS5600
+    ```
+    This displays the rotary encoder angle, balance the pendulum manually and note the encoder value shown in the terminal. Ideally, this should be 2000 plus or minus 300, to keep the rollover state for angle outside the operating range of the pendulum.
 
-This relates to Figure 3 in the paper.
+5. Run the pendulum application from the project directory:
 
-* First, go to the project working directory `cd path/to/achal`
-* Empty the logging directory `rm -rf logging/*`
-* From the workstation, execute the bash script `bash run_ivp_1.sh`
+    ```bash
+    sudo ./pivp_run.sh $NUM_NODES $POSITION_LOOP_PERIOD $ANGLE_LOOP_PERIOD $POSITION_KP $POSITION_KD $POSITION_KI $ANGLE_KP $ANGLE_KD $ANGLE_KI $POSITION_SET_POINT $ANGLE_SET_POINT
+    ```
 
-  * This initiates the python script `run.py` for 20 different configurations (sequentially)
-  * The experiment may take about 8 to 9 hours in total
-  * All logs are stored inside the `logging` directory
-  * For each run, a new folder with a unique timestamp `2022-09-08 04:22:01.107544` is created
-  * This folder contains the logs and data files for that run collected from each node
-  * We care about the latest folder since the data files contain cumulative history
+      Values that worked well for our system for the other parameters:
 
-* Afterwards, execute the plotting script `bash plot_ivp_1.sh`
-  
-  * This picks the latest folder folder inside `logging`, say, `2022-09-08 04:22:01.107544`
-  * All data files of the form `achal03_20220907192353.data` are then moved to the plotting directory `/paper/a1`
-  * The plotting script `plot_a1.py` is then executed
-  * Resulting plots `s.pdf` and `et.pdf` are stored in `paper/a1` as well
+      | Parameter | Value |
+      |--- | --- |
+      |`NUM_NODES`| number of nodes you are running with| 
+      | `POSITION_LOOP_PERIOD`: | 20 |
+      | `ANGLE_LOOP_PERIOD`: | 6 |
+      | `POSITION_KP`: | 0.01 |
+      | `POSITION_KD`: | 0.08 |
+      | `POSITION_KI`: | 0 |
+      | `ANGLE_KP`: | 25 |
+      | `ANGLE_KD`: | 2.5 |
+      | `ANGLE_KI`: | 150 |
+      | `POSITION_SET_POINT`: | 20 - Corresponds to distance from side to middle of track in cm |
+      | `ANGLE_SET_POINT`: | calibration value from previous step |
 
-* The plots are intepreted as follows.
+6. Press either limit switch on sides of pendulum track to stop a run of the pendulum
+7. Logs for the run are available at local nodes at ‘PiCtlLogs/date-of-runcompletion_time-of-completion_PiN’
 
-  * `s.pdf` corresponds to Fig 3(a) in the paper that measures the number of successful iterations for each configuration
-  * `et.pdf` corresponds to Fig 3(b) in the paper that measures the execution times for each configuration
-
-* Shortening the experiment
-
-  * We currently do not support producing a graph for a shorter version of the experiment.
-  * However, feel free to simplify the configuration space in `run_ivp_1.sh` (i.e., the big nested `for` loop inside)
-  * You continue with the above steps now, but the plotting script may fail
-  * However, the plotting script copies the relevant node-specific raw data to the `/paper/a1`, which you can peruse for a quick overview of results
-
-* Docker
-  * As mentioned above, the `docker-compose.yml` file can be modified to run the `run_ivp_1.sh` and `plot_ivp_1.sh` scripts instead, and the results can be found in the `/paper/a1` folder
-
-
-### Experiment A2
-
-This relates to Figure 4 in the paper.
-
-* Again, go to the project working directory `cd path/to/achal`
-* Empty the logging directory `rm -rf logging/*`
-* From the workstation, execute the bash script `bash run_ivp_2.sh`
-
-  * This initiates the python script `run.py` for 6 different configurations (sequentially)
-  * The experiment may take about 1 hour in total
-  * All logs are stored inside the `logging` directory
-  * For each run, a new folder with a unique timestamp `2022-09-08 04:22:01.107544` is created
-  * This folder contains the logs and data files for that run collected from each node
-  * We care about the latest folder since the data files contain cumulative history
-
-* Afterwards, execute the plotting script `bash plot_ivp_2.sh`
-  
-  * This picks the latest folder folder inside `logging`, say, `2022-09-08 04:22:01.107544`
-  * All data files containing the execution times of the form `achal03_20220907192353.data.et` are then moved to the plotting directory `/paper/a2`
-  * The plotting script `plot_a2.py` is then executed
-  * Resulting plots `et_profile.pdf` is stored in `paper/a2` as well
-
-* The plot is intepreted as follows.
-
-  * `et_profile.pdf` corresponds to Fig 4 in the paper that measures the execution times for different faulty scenarios
-
-* Docker
-  * As mentioned above, the `docker-compose.yml` file can be modified to run the `run_ivp_2.sh` and `plot_ivp_2.sh` scripts instead, and the results can be found in the `/paper/a2` folder
-
-
-### Experiment B1
-
-This relates to Table I in the paper.
-
-* First, go to the project working directory `cd path/to/achal`
-* Empty the logging directory `rm -rf logging/*`
-* From the workstation, execute the bash script `bash run_bosch_1.sh`
-
-  * This initiates the python script `run.py` for 8 different configurations (sequentially)
-  * The experiment may take about 2 hours in total
-  * All logs are stored inside the `logging` directory
-  * For each run, a new folder with a unique timestamp `2022-09-08 04:22:01.107544` is created
-  * This folder contains the logs and data files for that run collected from each node
-  * We care about the latest folder since the data files contain cumulative history
-
-* Afterwards, execute the plotting script `bash plot_bosch_1.sh`
-  
-  * This picks the latest folder folder inside `logging`, say, `2022-09-08 04:22:01.107544`
-  * All data files of the form `achal03_20220907192353.data` are then moved to the plotting directory `/paper/b1`
-  * The plotting script `plot_b1.py` is then executed
-  * The script does not plot anything but output a file `table.txt` containing a table that we show in the paper as Table I
-
-* Shortening the experiment
-
-  * In the `run_bosch_1.sh` file, you can remove some of the entries from the `config_files0` array to shorten the runtime
-
-* Docker
-  * As mentioned above, the `docker-compose.yml` file can be modified to run the `run_bosch_1.sh` and `plot_bosch_1.sh` scripts instead, and the results can be found in the `/paper/b1` folder
-
-
-### Experiments B2 and B3
-
-These relate to Table II (upper and lower halves) in the paper (respectively).
-
-* These steps are identical to the previous experiment B1, only the workload configurations used in each `run_bosch_*.sh` script are different
-* The plotting scripts are actually identical, we have separated them just for naming convenience
-* Hence, follow the same steps as B1, but replace `b1` with `b2` or `b3` everywhere
-* B2 generates data for the first 9 rows of table II in the paper and B3 for the remaining rows
-
-<!---
-## Compilation
-
-The build process is managed using [CMake](https://cmake.org/cmake/help/latest/guide/tutorial/) (currently, version 3.16.3).
-
-## Organization
-
-### config
-
-Currently, there is only one `default.cfg` configuration file. It summarizes:
-
-1. all distributed nodes in the system, including their respective hostnames, IP addresses, and ports, which are used for networking, and 
-2. all applications deployed in the system, including their respective names, periods, and replication factors.
-
-Achal relies on [libconfig](https://hyperrealm.github.io/libconfig/) for parsing all configuration files. The parsing logic is implemented in files `src/achal/config.h` and `src/achal/config.cpp`.
-
-### src/utils
-
-### test
-
-For unit-testing, we use the stable version of [Catch2 (v2.x)](https://github.com/catchorg/Catch2/tree/v2.x). Specifically, the automatically generated single header file that we use in this regard corresponds to version 2.13.0 (see `tests/catch.hpp` for more details).
-
-The tests take a long time to run. In order to see progress, run `./tests -s` to see the outputof successful tests as well.
-
-## Workloads
-
-Inverted pendulum simulation based on Gonçalo Morgado's implementation:
-* Author webpage: http://gmagno.users.sourceforge.net/InvertedPendulum.htm
-* Original source: https://sourceforge.net/projects/ivpendulum/
-
-https://www.ecrts.org/forum/viewtopic.php?f=32&t=85
-
-## Styleguide
-
-We try to follow the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)
-
-In order to use a tool like [Artistic Style](http://astyle.sourceforge.net) for auto-formatting:
-```
-./astyle --style=google --indent=spaces=2 --suffix=none --max-code-length=80 --recursive "$HOME/achal/src/*.cpp" "$HOME/achal/src/*.h" "$HOME/achal/test/*.cpp" "$HOME/achal/test/*.h"
-```
--->
+## Pendulum Build Documentation
+Detailled descriptions of how to build the pendulum and various aspects of the systemn are included in subdirectories of this project.
+- [`Bluepill_Firmware`](Bluepill_Firmware): Firmware for 2 Bluepill microcontrollers used, along with instructions for how to flash the firmware on the devices.
+- [`PCB_Designs_Docs`](PCB_Designs_Docs): All PCB design files for the custom PCBs used in the pendulum, including labelled circuit diagrams for reference, gerber and drill files for fabrication. Additionally, all electrical components and quantities, with purchase links are shown. 
+- [`Mech_Docs`](Mech_Docs): All mechanical components with purchase links and quantities are included. Additionally, CAD design files, STL files for 3D printed parts and DXFs for laser cut parts are included.

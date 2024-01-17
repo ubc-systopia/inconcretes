@@ -21,8 +21,10 @@ find_package(Boost COMPONENTS thread chrono REQUIRED)
 find_library(LIBCONFIGPP_LOCATION libconfig++)
 find_library(LIBCONFIG_LOCATION libconfig)
 find_package(etcd-cpp-api)
+
                                                                                                                                                       
-find_library(log4cpp                                                                                                                                                    
+find_library(
+  log4cpp                                                                                                                                                    
   NAMES log4cpp                                                                                                                                                       
   PATHS /usr/lib /usr/lib64 /usr/local/lib /opt/local/lib                                                                                                                                   
 )
@@ -32,6 +34,8 @@ include_directories(${ETCD_CPP_INCLUDE_DIRS})
 # Process Abseil's CMake build system
 add_subdirectory(third-party/abseil-cpp)
 
+#add_subdirectory(pigpio)
+
 include_directories(
   src
   third-party/abseil-cpp
@@ -40,6 +44,8 @@ include_directories(
   third-party/hopscotch-map/include
   third-party/array-hash/include
   ~/usr/local/include
+  /usr/local/include/jsoncpp
+  third-party/jsoncpp
 )
 
 add_library(
@@ -50,37 +56,31 @@ add_library(
   src/utils/binpack.cpp
   src/utils/periodic_task.cpp
   src/utils/periodic_timer.cpp
-  src/utils/kzh15_benchmark_generator.cpp
   src/achal/config.cpp
   src/achal/kvs_interface.cpp
   src/achal/simple_kvs.cpp
   src/achal/bft_kvs.cpp
-  src/achal/redis_kvs.cpp
-  src/achal/etcd_kvs.cpp
-  src/applications/inverted_pendulum_sim.cpp
-  src/applications/kzh15.cpp
+  src/applications/physical_ivp.cpp
+  src/applications/PIvPUtils/Ultrasonic.cpp
+  src/applications/PIvPUtils/AS_5600.cpp
 )
+
 target_link_libraries(
   achal
 )
 
+
 add_executable(
-  tests
-  test/main.cpp
-  test/test_redis.cpp
-  test/test_config.cpp
-  test/test_binpack.cpp
-  test/test_periodic_timer.cpp
-  test/test_periodic_task.cpp
-  test/test_kzh15_benchmark_e2e.cpp
-  test/test_kzh15_benchmark_generator.cpp
-  test/test_eigtree.cpp
-  test/test_bft_kvs.cpp
-  test/test_etcd.cpp
+  run_pivp
+  exp/pivp1.cpp
 )
 
 target_link_libraries(
-  tests
+  run_pivp
+  atomic
+  pigpio
+  jsoncpp
+  i2c
   achal
   libconfig++.so
   liblog4cpp.so
@@ -93,88 +93,30 @@ target_link_libraries(
 )
 
 add_executable(
-  bosch1
-  exp/bosch1.cpp
-)
-
-target_link_libraries(
-  achal
-  libconfig++.so
-  liblog4cpp.so
-  Threads::Threads
-  absl::flat_hash_map
-  absl::node_hash_map
-  Boost::thread 
-  Boost::chrono 
-  ${ETCD_CPP_LIBRARIES}
-)
-
-target_link_libraries(
-  achal
-  libconfig++.so
-  liblog4cpp.so
-  Threads::Threads
-  absl::flat_hash_map
-  absl::node_hash_map
-  Boost::thread 
-  Boost::chrono 
-  ${ETCD_CPP_LIBRARIES}
-)
-
-target_link_libraries(
-  bosch1
-  achal
-  libconfig++.so
-  liblog4cpp.so
-  Threads::Threads
-  absl::flat_hash_map
-  absl::node_hash_map
-  Boost::thread 
-  Boost::chrono 
-  ${ETCD_CPP_LIBRARIES}
+  test_Ultrasonic
+  src/applications/PIvPUtils/test_Ultrasonic.cpp
+  src/applications/PIvPUtils/Ultrasonic.cpp
 )
 
 add_executable(
-  exp_ivp_1
-  exp/ivp1.cpp
+  test_AS5600
+  src/applications/PIvPUtils/test_AS5600.cpp
+  src/applications/PIvPUtils/AS_5600.cpp
 )
 
-target_link_libraries(
-  exp_ivp_1
-  achal
-  libconfig++.so
-  liblog4cpp.so
-  Threads::Threads
-  absl::flat_hash_map
-  absl::node_hash_map
-  Boost::thread 
-  Boost::chrono 
-  ${ETCD_CPP_LIBRARIES}
+add_executable(
+  test_limit_sw
+  src/applications/PIvPUtils/test_limit_sw.cpp
 )
 
-# <------------ add hiredis dependency --------------->
-find_path(HIREDIS_HEADER hiredis)
-target_include_directories(achal PUBLIC ${HIREDIS_HEADER})
-target_include_directories(tests PUBLIC ${HIREDIS_HEADER})
-target_include_directories(exp_ivp_1 PUBLIC ${HIREDIS_HEADER})
-target_include_directories(bosch1 PUBLIC ${HIREDIS_HEADER})
+#target_link_libraries(test_Ultrasonic PUBLIC pigpio)
+#target_link_libraries(test_AS5600 PUBLIC pigpio)
 
-find_library(HIREDIS_LIB hiredis)
-target_link_libraries(achal ${HIREDIS_LIB})
-target_link_libraries(tests ${HIREDIS_LIB})
-target_link_libraries(exp_ivp_1 ${HIREDIS_LIB})
-target_link_libraries(bosch1 ${HIREDIS_LIB})
-
-# <------------ add redis-plus-plus dependency -------------->
-# NOTE: this should be *sw* NOT *redis++*
-find_path(REDIS_PLUS_PLUS_HEADER sw)
-target_include_directories(achal PUBLIC ${REDIS_PLUS_PLUS_HEADER})
-target_include_directories(tests PUBLIC ${REDIS_PLUS_PLUS_HEADER})
-target_include_directories(exp_ivp_1 PUBLIC ${REDIS_PLUS_PLUS_HEADER})
-target_include_directories(bosch1 PUBLIC ${REDIS_PLUS_PLUS_HEADER})
-
-find_library(REDIS_PLUS_PLUS_LIB redis++)
-target_link_libraries(achal ${REDIS_PLUS_PLUS_LIB})
-target_link_libraries(tests ${REDIS_PLUS_PLUS_LIB})
-target_link_libraries(exp_ivp_1 ${REDIS_PLUS_PLUS_LIB})
-target_link_libraries(bosch1 ${REDIS_PLUS_PLUS_LIB})
+find_library(PIGPIO_LIB pigpio)
+if(PIGPIO_LIB)
+  message(STATUS "Found pigpio library: ${PIGPIO_LIB}")
+  target_link_libraries(test_Ultrasonic ${PIGPIO_LIB})
+  target_link_libraries(test_limit_sw ${PIGPIO_LIB})
+else()
+  message(FATAL_ERROR "pigpio library not found")
+endif()

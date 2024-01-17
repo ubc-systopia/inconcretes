@@ -103,6 +103,8 @@ PeriodicTask::PeriodicTask(unsigned id, uint64_t time_period_ns,
     cpu(cpu),
     timer(new PeriodicTimer(time_period_ns, offset_ns)),
     logger(logger) {
+    std::cout<<"done periodic"<<std::endl;
+    std::cout<< "Task "<< id << " | constructor cpu: "<<cpu<<" | constructor prio "<<prio<<std::endl;
   assert(logger != NULL);
 }
 
@@ -115,6 +117,7 @@ void PeriodicTask::update_scheduling_preferences(int prio, int cpu) {
 }
 
 void PeriodicTask::release(TimeSpec* release_ts) {
+  std::cout<<"Priority "<< prio <<" | Task " << id<<" | CPU: "<< cpu<< std::endl;
   set_my_sched_fifo_priority(prio);
   pin_me_to_core(cpu);
 
@@ -153,8 +156,31 @@ void PeriodicTask::release(TimeSpec* release_ts) {
 
     timer->wait();
   }
-
+  
   clock_gettime(CLOCK_ID, &task_finish_ts);
+}
+
+void PeriodicTask::flush_exec_times(std::string log_folder_path) {
+  
+  std::ofstream file(log_folder_path+"/exec_times_task_"+std::to_string(id)+".csv");
+  
+  if (!file.is_open())
+  {
+    std::cerr << "unable to open file" << std::endl;
+    return;
+  }
+  
+  file << "Exec Time (ms)" << std::endl;
+
+  if(collect_ets){
+    for(int i=0;i<num_jobs;i++){
+      file << ets_ms[i] << std::endl;
+    }
+  }
+  
+  std::cout << "done flushing exec times for id: " << id << std::endl;
+  file.close();
+
 }
 
 void PeriodicTask::spawn(TimeSpec* release_ts) {

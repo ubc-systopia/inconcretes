@@ -53,6 +53,7 @@ PeriodicTimer::PeriodicTimer(uint64_t time_period_ns, uint64_t offset_ns)
   : time_period_ns(time_period_ns),
     offset_ns(offset_ns),
     last_inter_arrival_ns(0) {
+      std::cout<<"done timer"<<std::endl;
   timespecclear(&last_activation_ts);
   clock_gettime(CLOCK_ID, &base_ts);
 }

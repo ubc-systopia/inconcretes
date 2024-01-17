@@ -1,0 +1,6 @@
+[submodule "third-party/abseil-cpp"]
+	path = third-party/abseil-cpp
+	url = https://github.com/abseil/abseil-cpp.git
+[submodule "third-party/libconfig"]
+	path = third-party/libconfig
+	url = https://github.com/hyperrealm/libconfig.git
